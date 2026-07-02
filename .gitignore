@@ -6,7 +6,18 @@
 Debug/
 Release/
 x64/
+Debug_x32/
+Debug_x64/
+Release_x32/
+Release_x64/
+.vs/
 *.obj
 *.pdb
 *.ilk
 *.exe
+
+# WinMTR CLI runtime output
+*.log
+*_results.txt
+*_results.html
+mtr.csv

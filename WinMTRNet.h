@@ -14,7 +14,21 @@
 #define WINMTRNET_H_
 
 
-class WinMTRDialog;
+// Configuration for a trace run. Replaces the former tight coupling to the
+// MFC dialog: the network core no longer reads settings from the GUI.
+struct MTRConfig {
+	int		pingsize;	// ICMP payload size in bytes
+	double	interval;	// seconds between pings per hop
+	bool	useDNS;		// resolve hop IPs to hostnames
+	int		maxHops;	// maximum number of hops (TTL) to probe
+
+	MTRConfig()
+		: pingsize(DEFAULT_PING_SIZE)
+		, interval(DEFAULT_INTERVAL)
+		, useDNS(DEFAULT_DNS ? true : false)
+		, maxHops(30)
+	{}
+};
 
 typedef ip_option_information IPINFO, *PIPINFO, FAR *LPIPINFO;
 
@@ -50,7 +64,7 @@ class WinMTRNet {
 
 public:
 
-	WinMTRNet(WinMTRDialog *wp);
+	WinMTRNet(const MTRConfig &cfg);
 	~WinMTRNet();
 	void	DoTrace(int address);
 	void	ResetHops();
@@ -75,7 +89,7 @@ public:
 	void	AddReturned(int at);
 	void	AddXmit(int at);
 
-	WinMTRDialog		*wmtrdlg;
+	MTRConfig			config;
 	__int32				last_remote_addr;
 	bool				tracing;
 	bool				initialized;

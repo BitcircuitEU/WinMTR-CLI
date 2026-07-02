@@ -3,10 +3,9 @@
 //
 //
 // DESCRIPTION:
-//   
-//
-// NOTES:
-//    
+//   Global definitions shared by the WinMTR command line / service build.
+//   This header is intentionally free of any MFC dependency so the core can
+//   be compiled as a plain Win32 console application.
 //
 //*****************************************************************************
 
@@ -17,17 +16,16 @@
 #define  _USE_32BIT_TIME_T
 #endif
 
-#define VC_EXTRALEAN
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
 
-#include <afxwin.h>
-#include <afxext.h>
-#include <afxdisp.h>
-#include <afxdtctl.h>
-
-#ifndef _AFX_NO_AFXCMN_SUPPORT
-  #include <afxcmn.h>
-#endif 
-#include <afxsock.h>
+#include <winsock2.h>
+#include <ws2tcpip.h>
+#include <windows.h>
+#include <tchar.h>
+#include <iphlpapi.h>
+#include <icmpapi.h>
 
 #include <process.h>
 #include <stdio.h>
@@ -44,12 +42,9 @@
 #include <sys/timeb.h>
 #include <sys/stat.h>
 
-#include "resource.h"
-
-#define WINMTR_VERSION	"0.9"
+#define WINMTR_VERSION	"0.0.1"
 #define WINMTR_LICENSE	"GPL - GNU Public License"
-#define WINMTR_COPYRIGHT "WinMTR 0.9 (c) 2010-2011 Appnor MSP - Fully Managed Hosting & Cloud Provider www.appnor.com"
-#define WINMTR_HOMEPAGE	"http://WinMTR.sourceforge.net"
+#define WINMTR_NAME		"WinMTR CLI"
 
 #define DEFAULT_PING_SIZE	64
 #define DEFAULT_INTERVAL	1.0

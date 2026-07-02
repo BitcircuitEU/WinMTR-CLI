@@ -4,7 +4,6 @@
 //*****************************************************************************
 #include "WinMTRGlobal.h"
 #include "WinMTRNet.h"
-#include "WinMTRDialog.h"
 #include <iostream>
 #include <sstream>
 
@@ -32,22 +31,22 @@ struct dns_resolver_thread {
 void TraceThread(void *p);
 void DnsResolverThread(void *p);
 
-WinMTRNet::WinMTRNet(WinMTRDialog *wp) {
+WinMTRNet::WinMTRNet(const MTRConfig &cfg) {
 	
 	ghMutex = CreateMutex(NULL, FALSE, NULL);
 	tracing=false;
 	initialized = false;
-	wmtrdlg = wp;
+	config = cfg;
 	WSADATA wsaData;
 
     if( WSAStartup(MAKEWORD(2, 2), &wsaData) ) {
-        AfxMessageBox("Failed initializing windows sockets library!");
+        fprintf(stderr, "Failed initializing windows sockets library!\n");
 		return;
     }
 
     hICMP_DLL =  LoadLibrary(_T("ICMP.DLL"));
     if (hICMP_DLL == 0) {
-        AfxMessageBox("Failed: Unable to locate ICMP.DLL!");
+        fprintf(stderr, "Failed: Unable to locate ICMP.DLL!\n");
         return;
     }
 
@@ -58,7 +57,7 @@ WinMTRNet::WinMTRNet(WinMTRDialog *wp) {
     lpfnIcmpCloseHandle = (LPFNICMPCLOSEHANDLE)GetProcAddress(hICMP_DLL,"IcmpCloseHandle");
     lpfnIcmpSendEcho    = (LPFNICMPSENDECHO)GetProcAddress(hICMP_DLL,"IcmpSendEcho");
     if ((!lpfnIcmpCreateFile) || (!lpfnIcmpCloseHandle) || (!lpfnIcmpSendEcho)) {
-        AfxMessageBox("Wrong ICMP.DLL system library !");
+        fprintf(stderr, "Wrong ICMP.DLL system library !\n");
         return;
     }
 
@@ -67,7 +66,7 @@ WinMTRNet::WinMTRNet(WinMTRDialog *wp) {
      */
     hICMP = (HANDLE) lpfnIcmpCreateFile();
     if (hICMP == INVALID_HANDLE_VALUE) {
-        AfxMessageBox("Error in ICMP.DLL !");
+        fprintf(stderr, "Error in ICMP.DLL !\n");
         return;
     }
 
@@ -117,8 +116,12 @@ void WinMTRNet::DoTrace(int address)
 
 	last_remote_addr = address;
 
+	int hops = config.maxHops;
+	if(hops > MAX_HOPS) hops = MAX_HOPS;
+	if(hops < 1) hops = 1;
+
 	// one thread per TTL value
-	for(int i = 0; i < MAX_HOPS; i++) {
+	for(int i = 0; i < hops; i++) {
 		trace_thread *current = new trace_thread;
 		current->address = address;
 		current->winmtr = this;
@@ -126,7 +129,7 @@ void WinMTRNet::DoTrace(int address)
 		hThreads[i] = (HANDLE)_beginthread(TraceThread, 0 , current);
 	}
 
-	WaitForMultipleObjects(MAX_HOPS, hThreads, TRUE, INFINITE);
+	WaitForMultipleObjects(hops, hThreads, TRUE, INFINITE);
 }
 
 void WinMTRNet::StopTrace()
@@ -143,7 +146,7 @@ void TraceThread(void *p)
     IPINFO			stIPInfo, *lpstIPInfo;
     DWORD			dwReplyCount;
 	char			achReqData[8192];
-	int				nDataLen									= wmtrnet->wmtrdlg->pingsize;
+	int				nDataLen									= wmtrnet->config.pingsize;
 	char			achRepData[sizeof(ICMPECHO) + 8192];
 
 
@@ -247,8 +250,8 @@ void TraceThread(void *p)
 					wmtrnet->SetName(current->ttl - 1, "General failure.");
 			}
 
-			if(wmtrnet->wmtrdlg->interval * 1000 > icmp_echo_reply->RoundTripTime)
-				Sleep(wmtrnet->wmtrdlg->interval * 1000 - icmp_echo_reply->RoundTripTime);
+			if(wmtrnet->config.interval * 1000 > icmp_echo_reply->RoundTripTime)
+				Sleep((DWORD)(wmtrnet->config.interval * 1000 - icmp_echo_reply->RoundTripTime));
 		}
 
     } /* end ping loop */
@@ -374,7 +377,8 @@ void WinMTRNet::SetAddr(int at, __int32 addr)
 		dns_resolver_thread *dnt = new dns_resolver_thread;
 		dnt->index = at;
 		dnt->winmtr = this;
-		if(wmtrdlg->useDNS) _beginthread(DnsResolverThread, 0, dnt);
+		if(config.useDNS) _beginthread(DnsResolverThread, 0, dnt);
+		else delete dnt;
 	}
 
 	ReleaseMutex(ghMutex);
